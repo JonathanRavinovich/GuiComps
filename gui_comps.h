@@ -1,13 +1,19 @@
-#include <SFML/Config.hpp>
 #include <SFML/Graphics.hpp>
-#include <cstdint>
 #include <deque>
 #include <vector>
 #include <algorithm>
+#include <string>
 #include <iostream>
 
 #define ACCEL_FAST 0
 #define ACCEL_SLOW 1
+
+#define CENTER 0
+#define LEFT 1
+#define RIGHT 2
+#define UP 3
+#define DOWN 4
+
 
 class Component {
 private:
@@ -22,7 +28,7 @@ public:
         this->size = size;
     }
 
-    virtual ~Component(){}
+    ~Component(){}
     
     void update() {
         if(moves.size() > 0) {
@@ -31,12 +37,7 @@ public:
         }
     }
 
-    void draw(sf::RenderWindow& window) {
-        sf::RectangleShape shape(size);
-        shape.setPosition(pos);
-        shape.setFillColor(color);
-        window.draw(shape);
-    }
+    virtual void draw(sf::RenderWindow& window) = 0;
 
     void accelerate(sf::Vector2f pos, sf::Vector2f accelVec={2,2}, int32_t numOfSteps=10, char type=ACCEL_FAST) {
         float newX = pos.x;
@@ -82,6 +83,43 @@ public:
     void setColor(sf::Color color) {
         this->color = color;
     }
+};
 
+
+class TextComponent : public Component {
+private:
+    sf::Font font;
+    sf::Int16 textSize;
+    sf::Vector2f textPos;
+    sf::Color textColor;
+    sf::Uint8 mode;
+
+public:
+    std::string text;
+
+    TextComponent(sf::Vector2f position={0,0}, sf::Vector2f size={30,30}) : Component(position, size){
+        text = "";
+        textSize = 10;
+        textPos = {0,0};
+        textColor = sf::Color::Black;
+        mode = CENTER;
+    }
+
+    void setTextSize(sf::Int16 size) {
+        textSize = size;
+    }
+
+    void setTextColor(sf::Color color) {
+        textColor = color;
+    }
+
+    void loadFont(std::string path) {
+        if(!font.loadFromFile(path))
+            std::cout << "error loading path" << std::endl;
+    }
+
+    sf::Vector2f getTextPos() {
+        return textPos;
+    }
 };
 

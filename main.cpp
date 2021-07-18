@@ -1,8 +1,7 @@
-//#include <iostream>
 #include "gui_comps.h"
 #include <thread>
 
-Component comp;
+
 bool running = true;
 
 void update() {
