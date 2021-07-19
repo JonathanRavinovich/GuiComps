@@ -3,6 +3,7 @@
 
 
 bool running = true;
+Label comp("hello", {100,100}, {120,80});
 
 void update() {
     while(running) {
@@ -12,6 +13,9 @@ void update() {
 }
 
 int main() {
+    comp.loadFont("ARIAL.TTF");
+    comp.setTextSize(30);
+    comp.setTextMode(RIGHT);
     sf::RenderWindow window(sf::VideoMode(800,600), "Window");
     std::thread t(update);
     bool lock = false;

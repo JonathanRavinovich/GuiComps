@@ -13,10 +13,10 @@
 #define RIGHT 2
 #define UP 3
 #define DOWN 4
-
+#define NONE 5
 
 class Component {
-private:
+protected:
     sf::Vector2f pos;
     sf::Vector2f size;
     sf::Color color = sf::Color::White;
@@ -87,12 +87,13 @@ public:
 
 
 class TextComponent : public Component {
-private:
+protected:
     sf::Font font;
     sf::Int16 textSize;
     sf::Vector2f textPos;
     sf::Color textColor;
     sf::Uint8 mode;
+    bool loadedFont;
 
 public:
     std::string text;
@@ -102,7 +103,8 @@ public:
         textSize = 10;
         textPos = {0,0};
         textColor = sf::Color::Black;
-        mode = CENTER;
+        mode = NONE;
+        loadedFont = false;
     }
 
     void setTextSize(sf::Int16 size) {
@@ -113,9 +115,19 @@ public:
         textColor = color;
     }
 
+    void setTextPos(sf::Vector2f position) {
+        textPos = position;
+    }
+
+    void setTextMode(sf::Uint8 mode) {
+        this->mode = mode;
+    }
+
     void loadFont(std::string path) {
         if(!font.loadFromFile(path))
-            std::cout << "error loading path" << std::endl;
+            std::cout << "error loading font" << std::endl;
+        else
+            loadedFont = true;
     }
 
     sf::Vector2f getTextPos() {
@@ -123,3 +135,65 @@ public:
     }
 };
 
+
+class Label : public TextComponent {
+public:
+    Label(std::string text, sf::Vector2f position={0,0}, sf::Vector2f size={30,30}) : TextComponent(position, size) {
+        this->text = text;
+    }
+
+    ~Label() {}
+
+    void draw(sf::RenderWindow& window) {
+        if(!loadedFont) {
+            std::cout << "Error, font not loaded" << std::endl;
+        }
+        else {
+            sf::RectangleShape shape;
+            shape.setSize(size);
+            shape.setPosition(pos);
+            shape.setFillColor(color);
+            window.draw(shape);
+
+            sf::Text t;
+            t.setFont(font);
+            t.setString(text);
+            t.setFillColor(textColor);
+            t.setCharacterSize(textSize);
+
+            float tWidth = t.getLocalBounds().width;
+            float tHeight = t.getLocalBounds().height;
+            float tTop = t.getLocalBounds().top;
+            float tLeft = t.getLocalBounds().left;
+
+            switch (mode) {
+            case CENTER:
+                t.setPosition({pos.x + (size.x-tWidth)/2 - tLeft, pos.y+(size.y-textSize)/2 - tTop});
+                break;
+
+            case LEFT:
+                t.setPosition({pos.y - tLeft, pos.y + (size.y-tHeight)/2 - tTop});
+                break;
+
+            case RIGHT:
+                t.setPosition({pos.x + (size.x-tWidth-tLeft), pos.y + (size.y-tHeight)/2 - tTop});
+                break;
+
+            case UP:
+                t.setPosition({pos.x + (size.x-tWidth)/2 - tLeft, pos.y - tTop});
+                break;
+
+            case DOWN:
+                t.setPosition({pos.x + (size.x-tWidth)/2 - tLeft, pos.y + (size.y-tHeight-tTop)});
+                break;
+
+            default:
+                t.setPosition({pos.x + textPos.x - tLeft, pos.y + textPos.y - tTop});
+                break;
+            }
+
+            window.draw(t);
+        }
+    }
+
+};
