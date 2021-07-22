@@ -4,10 +4,11 @@
 
 bool running = true;
 Label comp("hello", {100,100}, {120,80});
+sf::Mouse mouse;
 
 void update() {
     while(running) {
-        comp.update();
+        comp.update(mouse);
         sf::sleep(sf::Time(sf::milliseconds(16)));
     }
 }
@@ -15,7 +16,8 @@ void update() {
 int main() {
     comp.loadFont("ARIAL.TTF");
     comp.setTextSize(30);
-    comp.setTextMode(RIGHT);
+    comp.setTextAnchor(CENTER);
+    comp.setTextPos({0,-10});
     sf::RenderWindow window(sf::VideoMode(800,600), "Window");
     std::thread t(update);
     bool lock = false;
@@ -28,12 +30,19 @@ int main() {
                 window.close();
                 running = false;
             }
-        }  
+        }
 
         if(sf::Keyboard::isKeyPressed(sf::Keyboard::K)) {
-            if(lock == false && comp.getPos().x==0 && comp.getPos().y==0) {
-                comp.accelerate({400,400}, {8,4}, 100, ACCEL_SLOW);
+            if(lock == false) {
+                comp.accelerate({400,400}, {8,4}, 100, ACCEL_FAST);
                 lock = true;
+            }
+        }
+
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::O)) {
+            if(lock) {
+                comp.setPosition({100,100});
+                lock = false;
             }
         }          
 

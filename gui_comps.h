@@ -1,3 +1,8 @@
+////////////////////////////////////
+// GuiComps version 0.01          //
+// Created by Jonathan Ravinovich //
+////////////////////////////////////
+
 #include <SFML/Graphics.hpp>
 #include <deque>
 #include <vector>
@@ -19,18 +24,21 @@ class Component {
 protected:
     sf::Vector2f pos;
     sf::Vector2f size;
-    sf::Color color = sf::Color::White;
+    sf::Color fillColor;
+    sf::Color borderColor;
     std::deque<sf::Vector2f> moves;
 
 public:
     Component(sf::Vector2f position={0,0}, sf::Vector2f size={30,30}){
         pos = position;
         this->size = size;
+        fillColor = sf::Color::White;
+        borderColor = sf::Color::White;
     }
 
     ~Component(){}
     
-    void update() {
+    void update(sf::Mouse mouse) {
         if(moves.size() > 0) {
             pos = moves[0];
             moves.pop_front();
@@ -72,16 +80,28 @@ public:
         }
     }
 
-    sf::Vector2f getPos() {
+    void setPosition(sf::Vector2f position) {
+        pos = position;
+    }
+
+    void setFillColor(sf::Color color) {
+        fillColor = color;
+    }
+
+    void setBorderColor(sf::Color color) {
+        borderColor = color;
+    }
+
+    void setSize(sf::Vector2f size) {
+        this->size = size;
+    }
+
+    sf::Vector2f getPosition() {
         return pos;
     }
 
     sf::Vector2f getSize() {
         return size;
-    }
-
-    void setColor(sf::Color color) {
-        this->color = color;
     }
 };
 
@@ -92,7 +112,7 @@ protected:
     sf::Int16 textSize;
     sf::Vector2f textPos;
     sf::Color textColor;
-    sf::Uint8 mode;
+    sf::Uint8 anchor;
     bool loadedFont;
 
 public:
@@ -103,7 +123,7 @@ public:
         textSize = 10;
         textPos = {0,0};
         textColor = sf::Color::Black;
-        mode = NONE;
+        anchor = NONE;
         loadedFont = false;
     }
 
@@ -119,8 +139,8 @@ public:
         textPos = position;
     }
 
-    void setTextMode(sf::Uint8 mode) {
-        this->mode = mode;
+    void setTextAnchor(sf::Uint8 anchor) {
+        this->anchor = anchor;
     }
 
     void loadFont(std::string path) {
@@ -152,7 +172,8 @@ public:
             sf::RectangleShape shape;
             shape.setSize(size);
             shape.setPosition(pos);
-            shape.setFillColor(color);
+            shape.setFillColor(fillColor);
+            shape.setOutlineColor(borderColor);
             window.draw(shape);
 
             sf::Text t;
@@ -166,34 +187,118 @@ public:
             float tTop = t.getLocalBounds().top;
             float tLeft = t.getLocalBounds().left;
 
-            switch (mode) {
+            switch(anchor) {
             case CENTER:
-                t.setPosition({pos.x + (size.x-tWidth)/2 - tLeft, pos.y+(size.y-textSize)/2 - tTop});
+                t.setPosition({pos.x+textPos.x+(size.x-tWidth)/2 - tLeft, pos.y+textPos.y+(size.y-textSize)/2 - tTop});
                 break;
 
             case LEFT:
-                t.setPosition({pos.y - tLeft, pos.y + (size.y-tHeight)/2 - tTop});
+                t.setPosition({pos.x+textPos.x - tLeft, pos.y+textPos.y+(size.y-tHeight)/2 - tTop});
                 break;
 
             case RIGHT:
-                t.setPosition({pos.x + (size.x-tWidth-tLeft), pos.y + (size.y-tHeight)/2 - tTop});
+                t.setPosition({pos.x+textPos.x+(size.x-tWidth-tLeft), pos.y+textPos.y+(size.y-tHeight)/2 - tTop});
                 break;
 
             case UP:
-                t.setPosition({pos.x + (size.x-tWidth)/2 - tLeft, pos.y - tTop});
+                t.setPosition({pos.x+textPos.x+(size.x-tWidth)/2 - tLeft, pos.y+textPos.y - tTop});
                 break;
 
             case DOWN:
-                t.setPosition({pos.x + (size.x-tWidth)/2 - tLeft, pos.y + (size.y-tHeight-tTop)});
+                t.setPosition({pos.x+textPos.x+(size.x-tWidth)/2 - tLeft, pos.y+textPos.y+(size.y-tHeight-tTop)});
                 break;
 
             default:
-                t.setPosition({pos.x + textPos.x - tLeft, pos.y + textPos.y - tTop});
+                t.setPosition({pos.x+textPos.x - tLeft, pos.y+textPos.y - tTop});
                 break;
             }
 
             window.draw(t);
         }
     }
+};
 
+
+class TextButton : public TextComponent {
+private:
+    sf::Color hlFillColor;
+    sf::Color hlBorderColor;
+    sf::Color hlTextColor;
+    sf::Uint16 tFillSteps;
+    sf::Uint16 tBorderSteps;
+    sf::Uint16 tTextSteps;
+    sf::Uint16 currFillStep;
+    sf::Uint16 currBorderStep;
+    sf::Uint16 currTextStep;
+    bool isSelected;
+
+    bool selected(sf::Vector2i m_pos) {
+        if(pos.x <= m_pos.x && m_pos.x <= pos.x+size.x) {
+            return (pos.y <= m_pos.y && m_pos.y <= pos.y+size.y);
+        }
+    }
+
+public:
+    TextButton(std::string text, sf::Vector2f position={0,0}, sf::Vector2f size={30,30}) : TextComponent(position, size) {
+        this->text = text;
+    }
+
+    ~TextButton() {}
+
+    void update(sf::Mouse mouse) {
+        TextComponent::update(mouse);
+        
+        if(selected(mouse.getPosition())) {
+
+        }
+        
+    }
+
+    void draw(sf::RenderWindow& window) {
+        sf::RectangleShape shape;
+        shape.setSize(size);
+        shape.setPosition(pos);
+        shape.setFillColor(fillColor);
+        shape.setOutlineColor(borderColor);
+        window.draw(shape);
+
+        sf::Text t;
+        t.setFont(font);
+        t.setString(text);
+        t.setFillColor(textColor);
+        t.setCharacterSize(textSize);
+
+        float tWidth = t.getLocalBounds().width;
+        float tHeight = t.getLocalBounds().height;
+        float tTop = t.getLocalBounds().top;
+        float tLeft = t.getLocalBounds().left;
+
+        switch(anchor) {
+        case CENTER:
+            t.setPosition({pos.x+textPos.x+(size.x-tWidth)/2 - tLeft, pos.y+textPos.y+(size.y-textSize)/2 - tTop});
+            break;
+
+        case LEFT:
+            t.setPosition({pos.x+textPos.x - tLeft, pos.y+textPos.y+(size.y-tHeight)/2 - tTop});
+            break;
+
+        case RIGHT:
+            t.setPosition({pos.x+textPos.x+(size.x-tWidth-tLeft), pos.y+textPos.y+(size.y-tHeight)/2 - tTop});
+            break;
+
+        case UP:
+            t.setPosition({pos.x+textPos.x+(size.x-tWidth)/2 - tLeft, pos.y+textPos.y - tTop});
+            break;
+
+        case DOWN:
+            t.setPosition({pos.x+textPos.x+(size.x-tWidth)/2 - tLeft, pos.y+textPos.y+(size.y-tHeight-tTop)});
+            break;
+
+        default:
+            t.setPosition({pos.x+textPos.x - tLeft, pos.y+textPos.y - tTop});
+            break;
+        }
+
+        window.draw(t);
+    }
 };
