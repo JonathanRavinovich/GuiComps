@@ -38,7 +38,7 @@ public:
 
     ~Component(){}
     
-    void update(sf::Mouse mouse) {
+    void update(sf::Vector2i m_pos, sf::Vector3i m_btns) {
         if(moves.size() > 0) {
             pos = moves[0];
             moves.pop_front();
@@ -221,52 +221,114 @@ public:
 
 class TextButton : public TextComponent {
 private:
+    // Highlight color(when mouse hovering on button)
     sf::Color hlFillColor;
     sf::Color hlBorderColor;
     sf::Color hlTextColor;
+    // Transition steps used for gradient change(also can be used for instant change)
     sf::Uint16 tFillSteps;
     sf::Uint16 tBorderSteps;
     sf::Uint16 tTextSteps;
+    // Count the time of the mouse hovering on the button for gradient change calculations
     sf::Uint16 currFillStep;
     sf::Uint16 currBorderStep;
     sf::Uint16 currTextStep;
+    // Used for debouncing the button when clicked
+    sf::Uint16 clickTimer;
+
+    sf::Uint16 borderThickness;
     bool isSelected;
+    void (*action)();
 
     bool selected(sf::Vector2i m_pos) {
         if(pos.x <= m_pos.x && m_pos.x <= pos.x+size.x) {
             return (pos.y <= m_pos.y && m_pos.y <= pos.y+size.y);
         }
+        return false;
     }
 
 public:
-    TextButton(std::string text, sf::Vector2f position={0,0}, sf::Vector2f size={30,30}) : TextComponent(position, size) {
+    TextButton(std::string text, void (*func)(), sf::Vector2f position={0,0}, sf::Vector2f size={30,30}) : TextComponent(position, size) {
         this->text = text;
+        hlFillColor = fillColor;
+        hlBorderColor = borderColor;
+        hlTextColor = textColor;
+        tFillSteps = 1;
+        tBorderSteps = 1;
+        tTextSteps = 1;
+        currFillStep = 0;
+        currBorderStep = 0;
+        currTextStep = 0;
+        action = func;
+        clickTimer = 0;
+        borderThickness = 0;
     }
 
     ~TextButton() {}
 
-    void update(sf::Mouse mouse) {
-        TextComponent::update(mouse);
+    void update(sf::Vector2i m_pos, sf::Vector3i m_btns) {
+        TextComponent::update(m_pos, m_btns);
         
-        if(selected(mouse.getPosition())) {
+        if(clickTimer > 0)
+            clickTimer--;
 
+        if(selected(m_pos)) {
+            if(m_btns.x && clickTimer <= 0) {
+                action();
+                clickTimer = 20;
+            }
+
+            if(currFillStep < tFillSteps)
+                currFillStep++;
+            
+            if(currBorderStep < tBorderSteps)
+                currBorderStep++;
+            
+            if(currTextStep < tTextSteps)
+                currTextStep++;
         }
-        
+        else {
+            if(currFillStep > 0)
+                currFillStep--;
+            
+            if(currBorderStep > 0)
+                currBorderStep--;
+            
+            if(currTextStep > 0)
+                currTextStep--;
+        } 
     }
 
     void draw(sf::RenderWindow& window) {
         sf::RectangleShape shape;
         shape.setSize(size);
         shape.setPosition(pos);
-        shape.setFillColor(fillColor);
-        shape.setOutlineColor(borderColor);
+        
+        sf::Color tmpFillColor;
+        tmpFillColor.r = (fillColor.r*(tFillSteps-currFillStep)+hlFillColor.r*currFillStep)/tFillSteps;
+        tmpFillColor.g = (fillColor.g*(tFillSteps-currFillStep)+hlFillColor.g*currFillStep)/tFillSteps;
+        tmpFillColor.b = (fillColor.b*(tFillSteps-currFillStep)+hlFillColor.b*currFillStep)/tFillSteps;
+        shape.setFillColor(tmpFillColor);
+        
+        sf::Color tmpBorderColor;
+        tmpBorderColor.r = (borderColor.r*(tBorderSteps-currBorderStep)+hlBorderColor.r*currBorderStep)/tBorderSteps;
+        tmpBorderColor.g = (borderColor.g*(tBorderSteps-currBorderStep)+hlBorderColor.g*currBorderStep)/tBorderSteps;
+        tmpBorderColor.b = (borderColor.b*(tBorderSteps-currBorderStep)+hlBorderColor.b*currBorderStep)/tBorderSteps;
+        shape.setOutlineColor(tmpBorderColor);
+        shape.setOutlineThickness(borderThickness);
         window.draw(shape);
 
         sf::Text t;
         t.setFont(font);
         t.setString(text);
-        t.setFillColor(textColor);
         t.setCharacterSize(textSize);
+    
+        sf::Color tmpTextColor;
+        tmpTextColor.r = (textColor.r*(tTextSteps-currTextStep)+hlTextColor.r*currTextStep)/tTextSteps;
+        tmpTextColor.g = (textColor.g*(tTextSteps-currTextStep)+hlTextColor.g*currTextStep)/tTextSteps;
+        tmpBorderColor.b = (textColor.b*(tTextSteps-currTextStep)+hlTextColor.b*currTextStep)/tTextSteps;
+        t.setFillColor(tmpTextColor);
+        
 
         float tWidth = t.getLocalBounds().width;
         float tHeight = t.getLocalBounds().height;
@@ -300,5 +362,33 @@ public:
         }
 
         window.draw(t);
+    }
+
+    void setBorderThickness(sf::Uint16 thickness) {
+        borderThickness = thickness;
+    }
+
+    void setHlFillColor(sf::Color color) {
+        hlFillColor = color;
+    }
+
+    void setHlBorderColor(sf::Color color) {
+        hlBorderColor = color;
+    }
+
+    void setHlTextColor(sf::Color color) {
+        hlTextColor = color;
+    }
+
+    void setFillTransition(sf::Uint16 steps) {
+        tFillSteps = steps;
+    }
+
+    void setBorderTransition(sf::Uint16 steps) {
+        tBorderSteps = steps;
+    }
+
+    void setTextTransition(sf::Uint16 steps) {
+        tTextSteps = steps;
     }
 };

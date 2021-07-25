@@ -1,24 +1,33 @@
 #include "gui_comps.h"
 #include <thread>
 
+void func() {
+    std::cout << "hello" << std::endl;
+}
 
 bool running = true;
-Label comp("hello", {100,100}, {120,80});
+TextButton comp("hello", &func, {100,100}, {100,60});
 sf::Mouse mouse;
+sf::Vector2i mouse_pos = {0,0};
+sf::Vector3i mouse_buttons = {0,0,0};
 
 void update() {
     while(running) {
-        comp.update(mouse);
+        comp.update(mouse_pos, mouse_buttons);
         sf::sleep(sf::Time(sf::milliseconds(16)));
     }
 }
 
 int main() {
+    sf::RenderWindow window(sf::VideoMode(800,600), "Window");
+
     comp.loadFont("ARIAL.TTF");
     comp.setTextSize(30);
     comp.setTextAnchor(CENTER);
-    comp.setTextPos({0,-10});
-    sf::RenderWindow window(sf::VideoMode(800,600), "Window");
+    comp.setTextPos({0,0});
+    comp.setHlTextColor(sf::Color::Green);
+    comp.setTextTransition(1);
+    comp.setBorderThickness(3);
     std::thread t(update);
     bool lock = false;
     
@@ -46,6 +55,8 @@ int main() {
             }
         }          
 
+        mouse_pos = mouse.getPosition(window);
+        mouse_buttons = {mouse.isButtonPressed(mouse.Left),mouse.isButtonPressed(mouse.Middle),mouse.isButtonPressed(mouse.Right)};
         window.clear(sf::Color::Black);
         comp.draw(window);
         window.display();
