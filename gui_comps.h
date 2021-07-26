@@ -1,5 +1,5 @@
 ////////////////////////////////////
-// GuiComps version 0.01          //
+// GuiComps version 0.02          //
 // Created by Jonathan Ravinovich //
 ////////////////////////////////////
 
@@ -326,9 +326,8 @@ public:
         sf::Color tmpTextColor;
         tmpTextColor.r = (textColor.r*(tTextSteps-currTextStep)+hlTextColor.r*currTextStep)/tTextSteps;
         tmpTextColor.g = (textColor.g*(tTextSteps-currTextStep)+hlTextColor.g*currTextStep)/tTextSteps;
-        tmpBorderColor.b = (textColor.b*(tTextSteps-currTextStep)+hlTextColor.b*currTextStep)/tTextSteps;
+        tmpTextColor.b = (textColor.b*(tTextSteps-currTextStep)+hlTextColor.b*currTextStep)/tTextSteps;
         t.setFillColor(tmpTextColor);
-        
 
         float tWidth = t.getLocalBounds().width;
         float tHeight = t.getLocalBounds().height;

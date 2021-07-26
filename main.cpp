@@ -25,8 +25,13 @@ int main() {
     comp.setTextSize(30);
     comp.setTextAnchor(CENTER);
     comp.setTextPos({0,0});
+    comp.setTextColor(sf::Color::White);
+    comp.setFillColor(sf::Color::Black);
+    comp.setBorderColor(sf::Color::Black);
+    comp.setHlFillColor(sf::Color::Black);
     comp.setHlTextColor(sf::Color::Green);
-    comp.setTextTransition(1);
+    comp.setTextTransition(10);
+    comp.setHlBorderColor(sf::Color::Green);
     comp.setBorderThickness(3);
     std::thread t(update);
     bool lock = false;
