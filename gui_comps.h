@@ -47,7 +47,7 @@ public:
 
     virtual void draw(sf::RenderWindow& window) = 0;
 
-    void accelerate(sf::Vector2f pos, sf::Vector2f accelVec={2,2}, int32_t numOfSteps=10, char type=ACCEL_FAST) {
+    void move(sf::Vector2f pos, sf::Vector2f accelVec={2,2}, int32_t numOfSteps=10, char type=ACCEL_FAST) {
         float newX = pos.x;
         float newY = pos.y;
         float tmpX = this->pos.x;
@@ -84,16 +84,16 @@ public:
         pos = position;
     }
 
+    void setSize(sf::Vector2f size) {
+        this->size = size;
+    }
+
     void setFillColor(sf::Color color) {
         fillColor = color;
     }
 
     void setBorderColor(sf::Color color) {
         borderColor = color;
-    }
-
-    void setSize(sf::Vector2f size) {
-        this->size = size;
     }
 
     sf::Vector2f getPosition() {
@@ -108,26 +108,36 @@ public:
 
 class TextComponent : public Component {
 protected:
+    std::string text;
     sf::Font font;
-    sf::Int16 textSize;
+    sf::Uint16 textSize;
     sf::Vector2f textPos;
+    sf::Vector2f textDrawPos; // used for the text anchor
     sf::Color textColor;
-    sf::Uint8 anchor;
     bool loadedFont;
 
 public:
-    std::string text;
-
     TextComponent(sf::Vector2f position={0,0}, sf::Vector2f size={30,30}) : Component(position, size){
         text = "";
         textSize = 10;
         textPos = {0,0};
+        textDrawPos = textPos;
         textColor = sf::Color::Black;
-        anchor = NONE;
         loadedFont = false;
     }
 
-    void setTextSize(sf::Int16 size) {
+    void setText(std::string text) {
+        this->text = text;
+    }
+
+    void loadFont(std::string path) {
+        if(!font.loadFromFile(path))
+            std::cout << "error loading font" << std::endl;
+        else
+            loadedFont = true;
+    }
+
+    void setTextSize(sf::Uint16 size) {
         textSize = size;
     }
 
@@ -140,14 +150,49 @@ public:
     }
 
     void setTextAnchor(sf::Uint8 anchor) {
-        this->anchor = anchor;
+        sf::Text t;
+        t.setFont(font);
+        t.setString(text);
+        t.setCharacterSize(textSize);
+
+        float tWidth = t.getLocalBounds().width;
+        float tHeight = t.getLocalBounds().height;
+        float tTop = t.getLocalBounds().top;
+        float tLeft = t.getLocalBounds().left;
+
+        switch(anchor) {
+            case CENTER:
+                textDrawPos = {textPos.x + (size.x-tWidth)/2 - tLeft, textPos.y + (size.y-textSize)/2 - tTop};
+                break;
+
+            case LEFT:
+                textDrawPos = {textPos.x - tLeft, textPos.y + (size.y-tHeight)/2 - tTop};
+                break;
+
+            case RIGHT:
+                textDrawPos = {textPos.x + (size.x-tWidth-tLeft), textPos.y + (size.y-tHeight)/2 - tTop};
+                break;
+
+            case UP:
+                textDrawPos = {textPos.x + (size.x-tWidth)/2 - tLeft, textPos.y - tTop};
+                break;
+
+            case DOWN:
+                textDrawPos = {textPos.x + (size.x-tWidth)/2 - tLeft, textPos.y + (size.y-tHeight-tTop)};
+                break;
+
+            default:
+                textDrawPos = {textPos.x - tLeft, textPos.y - tTop};
+                break;
+            }
     }
 
-    void loadFont(std::string path) {
-        if(!font.loadFromFile(path))
-            std::cout << "error loading font" << std::endl;
-        else
-            loadedFont = true;
+    std::string getText() {
+        return text;
+    }
+
+    sf::Uint16 getTextSize() {
+        return textSize;
     }
 
     sf::Vector2f getTextPos() {
@@ -181,38 +226,7 @@ public:
             t.setString(text);
             t.setFillColor(textColor);
             t.setCharacterSize(textSize);
-
-            float tWidth = t.getLocalBounds().width;
-            float tHeight = t.getLocalBounds().height;
-            float tTop = t.getLocalBounds().top;
-            float tLeft = t.getLocalBounds().left;
-
-            switch(anchor) {
-            case CENTER:
-                t.setPosition({pos.x+textPos.x+(size.x-tWidth)/2 - tLeft, pos.y+textPos.y+(size.y-textSize)/2 - tTop});
-                break;
-
-            case LEFT:
-                t.setPosition({pos.x+textPos.x - tLeft, pos.y+textPos.y+(size.y-tHeight)/2 - tTop});
-                break;
-
-            case RIGHT:
-                t.setPosition({pos.x+textPos.x+(size.x-tWidth-tLeft), pos.y+textPos.y+(size.y-tHeight)/2 - tTop});
-                break;
-
-            case UP:
-                t.setPosition({pos.x+textPos.x+(size.x-tWidth)/2 - tLeft, pos.y+textPos.y - tTop});
-                break;
-
-            case DOWN:
-                t.setPosition({pos.x+textPos.x+(size.x-tWidth)/2 - tLeft, pos.y+textPos.y+(size.y-tHeight-tTop)});
-                break;
-
-            default:
-                t.setPosition({pos.x+textPos.x - tLeft, pos.y+textPos.y - tTop});
-                break;
-            }
-
+            t.setPosition(textDrawPos + pos);
             window.draw(t);
         }
     }
@@ -322,43 +336,13 @@ public:
         t.setFont(font);
         t.setString(text);
         t.setCharacterSize(textSize);
+        t.setPosition(textDrawPos + pos);
     
         sf::Color tmpTextColor;
         tmpTextColor.r = (textColor.r*(tTextSteps-currTextStep)+hlTextColor.r*currTextStep)/tTextSteps;
         tmpTextColor.g = (textColor.g*(tTextSteps-currTextStep)+hlTextColor.g*currTextStep)/tTextSteps;
         tmpTextColor.b = (textColor.b*(tTextSteps-currTextStep)+hlTextColor.b*currTextStep)/tTextSteps;
         t.setFillColor(tmpTextColor);
-
-        float tWidth = t.getLocalBounds().width;
-        float tHeight = t.getLocalBounds().height;
-        float tTop = t.getLocalBounds().top;
-        float tLeft = t.getLocalBounds().left;
-
-        switch(anchor) {
-        case CENTER:
-            t.setPosition({pos.x+textPos.x+(size.x-tWidth)/2 - tLeft, pos.y+textPos.y+(size.y-textSize)/2 - tTop});
-            break;
-
-        case LEFT:
-            t.setPosition({pos.x+textPos.x - tLeft, pos.y+textPos.y+(size.y-tHeight)/2 - tTop});
-            break;
-
-        case RIGHT:
-            t.setPosition({pos.x+textPos.x+(size.x-tWidth-tLeft), pos.y+textPos.y+(size.y-tHeight)/2 - tTop});
-            break;
-
-        case UP:
-            t.setPosition({pos.x+textPos.x+(size.x-tWidth)/2 - tLeft, pos.y+textPos.y - tTop});
-            break;
-
-        case DOWN:
-            t.setPosition({pos.x+textPos.x+(size.x-tWidth)/2 - tLeft, pos.y+textPos.y+(size.y-tHeight-tTop)});
-            break;
-
-        default:
-            t.setPosition({pos.x+textPos.x - tLeft, pos.y+textPos.y - tTop});
-            break;
-        }
 
         window.draw(t);
     }
@@ -389,5 +373,15 @@ public:
 
     void setTextTransition(sf::Uint16 steps) {
         tTextSteps = steps;
+    }
+};
+
+
+class Slider : public Component {
+private:
+
+public:
+    Slider() : Component() {
+        
     }
 };

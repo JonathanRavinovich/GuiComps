@@ -24,7 +24,6 @@ int main() {
     comp.loadFont("ARIAL.TTF");
     comp.setTextSize(30);
     comp.setTextAnchor(CENTER);
-    comp.setTextPos({0,0});
     comp.setTextColor(sf::Color::White);
     comp.setFillColor(sf::Color::Black);
     comp.setBorderColor(sf::Color::Black);
@@ -48,7 +47,7 @@ int main() {
 
         if(sf::Keyboard::isKeyPressed(sf::Keyboard::K)) {
             if(lock == false) {
-                comp.accelerate({400,400}, {8,4}, 100, ACCEL_FAST);
+                comp.move({400,400}, {8,4}, 100, ACCEL_FAST);
                 lock = true;
             }
         }
