@@ -1,5 +1,5 @@
 ////////////////////////////////////
-// GuiComps version 0.02          //
+// GuiComps version 0.03          //
 // Created by Jonathan Ravinovich //
 ////////////////////////////////////
 
@@ -20,6 +20,9 @@
 #define DOWN 4
 #define NONE 5
 
+#define HORIZONTAL 0
+#define VERTICAL 1
+
 class Component {
 protected:
     sf::Vector2f pos;
@@ -29,7 +32,7 @@ protected:
     std::deque<sf::Vector2f> moves;
 
 public:
-    Component(sf::Vector2f position={0,0}, sf::Vector2f size={30,30}){
+    Component(sf::Vector2f position, sf::Vector2f size){
         pos = position;
         this->size = size;
         fillColor = sf::Color::White;
@@ -38,7 +41,7 @@ public:
 
     ~Component(){}
     
-    void update(sf::Vector2i m_pos, sf::Vector3i m_btns) {
+    void update(sf::Vector2i mPos, sf::Vector3i mBtns) {
         if(moves.size() > 0) {
             pos = moves[0];
             moves.pop_front();
@@ -47,33 +50,33 @@ public:
 
     virtual void draw(sf::RenderWindow& window) = 0;
 
-    void move(sf::Vector2f pos, sf::Vector2f accelVec={2,2}, int32_t numOfSteps=10, char type=ACCEL_FAST) {
+    void move(sf::Vector2f pos, sf::Vector2f accelVec={2,2}, int32_t numOfSteps=10, sf::Uint8 type=ACCEL_FAST) {
         float newX = pos.x;
         float newY = pos.y;
         float tmpX = this->pos.x;
         float tmpY = this->pos.y;
         float nextX = 0;
         float nextY = 0;
-        std::vector<sf::Vector2f> tmp_moves;
+        std::vector<sf::Vector2f> tmpMoves;
 
-        //calculating the path of the object using accel*(end_pos - current_pos)/(num_of_steps - current_step)
+        // calculating the path of the object using this formula: accel*(end_pos - current_pos)/(num_of_steps - current_step)
         for(int32_t i=0; i<numOfSteps; i++) {
             nextX = accelVec.x*(newX - tmpX)/(numOfSteps - i);
             nextY = accelVec.y*(newX - tmpY)/(numOfSteps - i);
             tmpX += nextX;
             tmpY += nextY;
-            tmp_moves.push_back({nextX, nextY});
+            tmpMoves.push_back({nextX, nextY});
         }
 
         tmpX = this->pos.x;
         tmpY = this->pos.y;
 
         if(type == ACCEL_SLOW) {
-            std::reverse(tmp_moves.begin(), tmp_moves.end());
+            std::reverse(tmpMoves.begin(), tmpMoves.end());
         }
         
-        //retracing the path
-        for(auto move : tmp_moves) {
+        // retracing the path
+        for(auto move : tmpMoves) {
             tmpX += move.x;
             tmpY += move.y;
             moves.push_back({tmpX, tmpY});
@@ -110,14 +113,14 @@ class TextComponent : public Component {
 protected:
     std::string text;
     sf::Font font;
-    sf::Uint16 textSize;
+    sf::Uint8 textSize;
     sf::Vector2f textPos;
-    sf::Vector2f textDrawPos; // used for the text anchor
+    sf::Vector2f textDrawPos;  // used for the text anchor
     sf::Color textColor;
     bool loadedFont;
 
 public:
-    TextComponent(sf::Vector2f position={0,0}, sf::Vector2f size={30,30}) : Component(position, size){
+    TextComponent(sf::Vector2f position, sf::Vector2f size) : Component(position, size){
         text = "";
         textSize = 10;
         textPos = {0,0};
@@ -137,7 +140,7 @@ public:
             loadedFont = true;
     }
 
-    void setTextSize(sf::Uint16 size) {
+    void setTextSize(sf::Uint8 size) {
         textSize = size;
     }
 
@@ -145,16 +148,18 @@ public:
         textColor = color;
     }
 
-    void setTextPos(sf::Vector2f position) {
+    void setTextPosition(sf::Vector2f position) {
         textPos = position;
     }
 
     void setTextAnchor(sf::Uint8 anchor) {
+        // creating the text to calculate its size
         sf::Text t;
         t.setFont(font);
         t.setString(text);
         t.setCharacterSize(textSize);
 
+        // getting the text dimentions
         float tWidth = t.getLocalBounds().width;
         float tHeight = t.getLocalBounds().height;
         float tTop = t.getLocalBounds().top;
@@ -195,7 +200,7 @@ public:
         return textSize;
     }
 
-    sf::Vector2f getTextPos() {
+    sf::Vector2f getTextPosition() {
         return textPos;
     }
 };
@@ -203,7 +208,7 @@ public:
 
 class Label : public TextComponent {
 public:
-    Label(std::string text, sf::Vector2f position={0,0}, sf::Vector2f size={30,30}) : TextComponent(position, size) {
+    Label(sf::Vector2f position, sf::Vector2f size, std::string text) : TextComponent(position, size) {
         this->text = text;
     }
 
@@ -254,15 +259,15 @@ private:
     bool isSelected;
     void (*action)();
 
-    bool selected(sf::Vector2i m_pos) {
-        if(pos.x <= m_pos.x && m_pos.x <= pos.x+size.x) {
-            return (pos.y <= m_pos.y && m_pos.y <= pos.y+size.y);
+    bool selected(sf::Vector2i mPos) {
+        if(pos.x <= mPos.x && mPos.x <= pos.x+size.x) {
+            return (pos.y <= mPos.y && mPos.y <= pos.y+size.y);
         }
         return false;
     }
 
 public:
-    TextButton(std::string text, void (*func)(), sf::Vector2f position={0,0}, sf::Vector2f size={30,30}) : TextComponent(position, size) {
+    TextButton(sf::Vector2f position, sf::Vector2f size, std::string text, void (*function)()) : TextComponent(position, size) {
         this->text = text;
         hlFillColor = fillColor;
         hlBorderColor = borderColor;
@@ -273,21 +278,21 @@ public:
         currFillStep = 0;
         currBorderStep = 0;
         currTextStep = 0;
-        action = func;
+        action = function;
         clickTimer = 0;
         borderThickness = 0;
     }
 
     ~TextButton() {}
 
-    void update(sf::Vector2i m_pos, sf::Vector3i m_btns) {
-        TextComponent::update(m_pos, m_btns);
+    void update(sf::Vector2i mPos, sf::Vector3i mBtns) {
+        TextComponent::update(mPos, mBtns);
         
         if(clickTimer > 0)
             clickTimer--;
 
-        if(selected(m_pos)) {
-            if(m_btns.x && clickTimer <= 0) {
+        if(selected(mPos)) {
+            if(mBtns.x && clickTimer <= 0) {
                 action();
                 clickTimer = 20;
             }
@@ -377,11 +382,170 @@ public:
 };
 
 
-class Slider : public Component {
+class ScrollBar : public Component {
 private:
+    sf::Uint8 type;
+    sf::Vector2f valRange;
+    sf::Vector2f sliderPos;  // the position of slider is relative to the position of the bar
+    sf::Vector2f sliderSize;
+    sf::Color sldFillColor;  // slider fill color
+    sf::Color sldBorderColor;  // slider border color  
+
+    bool hold;  // used to detemine if the slider is held
+    bool pressed;  // used for checking if the mouse was already pressed before hovering slider
+    sf::Uint16 sldMouseDist;  // the slider mouse distance is used for calculating the position of the slider when following the mouse
+
+    float slope;
+    float intercept;
+
+    bool selected(sf::Vector2i mPos) {
+        if(pos.x+sliderPos.x <= mPos.x && mPos.x <= pos.x+sliderPos.x+sliderSize.x) {
+            return (pos.y+sliderPos.y <= mPos.y && mPos.y <= pos.y+sliderPos.y+sliderSize.y);
+        }
+        return false;
+    }
 
 public:
-    Slider() : Component() {
-        
+    ScrollBar(sf::Vector2f position, sf::Vector2f size, sf::Uint8 type, sf::Vector2f sliderPosition={0,0}, sf::Vector2f sliderSize={30,30}) : Component(position, size) {
+        this->type = type;
+        sliderPos = sliderPosition;
+        this->sliderSize = sliderSize;
+        valRange = {0,100};
+        fillColor = sf::Color::Blue;
+        borderColor = sf::Color::Blue;
+        sldFillColor = {127,127,127}; // applying gray color
+        sldBorderColor = {127,127,127};
+
+        hold = false;
+        pressed = false;
+
+        // creating temporary variables for calculations
+        float min_val = std::min(valRange.x, valRange.y);
+        float max_val = std::max(valRange.x, valRange.y);
+
+        // calculating the slope and the intercept for calculating slider value
+        if(type == VERTICAL) {
+            slope = (min_val - max_val)/(0 - (size.y - sliderSize.y));
+            intercept = min_val - slope*0;
+        }
+        else {
+            slope = (min_val - max_val)/(0 - (size.x - sliderSize.x));
+            intercept = min_val - slope*0;
+        }
+    }
+
+    ~ScrollBar() {}
+
+    void update(sf::Vector2i mPos, sf::Vector3i mBtns) {
+        Component::update(mPos, mBtns);
+
+        // checking if mouse is on slider
+        if(selected(mPos)) {
+            // checking if mouse clicked on slider
+            if(mBtns.x && !hold && !pressed) {
+                if(type == VERTICAL)
+                    sldMouseDist = mPos.y - sliderPos.y;
+                else
+                    sldMouseDist = mPos.x - sliderPos.x;
+
+                hold = true;
+            }
+        }
+        else {
+            if(mBtns.x)
+                pressed = true;
+        }
+
+        // if the left button of mouse is not on hold removing grip from slider 
+        if(!mBtns.x) {
+            hold = false;
+            pressed = false;
+        }
+
+        // if the mouse holding the slider
+        if(hold) {
+            if(type == VERTICAL)
+                // checking if the position of slider will be out of bounds
+                if(mPos.y - sldMouseDist < 0)
+                    sliderPos.y = 0;
+                else if(mPos.y - sldMouseDist > size.y - sliderSize.y)
+                    sliderPos.y = size.y - sliderSize.y;
+                else
+                    sliderPos.y = mPos.y - sldMouseDist;
+
+            else
+                if(mPos.x - sldMouseDist < 0)
+                    sliderPos.x = 0;
+                else if(mPos.x - sldMouseDist > size.x - sliderSize.x)
+                    sliderPos.x = size.x - sliderSize.x;
+                else
+                    sliderPos.x = mPos.x - sldMouseDist;        
+        }
+    }
+
+    void draw(sf::RenderWindow& window) {
+        sf::RectangleShape shape;
+        shape.setSize(size);
+        shape.setPosition(pos);
+        shape.setFillColor(fillColor);
+        shape.setOutlineColor(borderColor);
+        window.draw(shape);
+
+        shape.setSize(sliderSize);
+        shape.setPosition(pos + sliderPos);
+        shape.setFillColor(sldFillColor);
+        shape.setOutlineColor(sldBorderColor);
+        window.draw(shape);
+    }
+
+    void setType(sf::Uint8 type) {
+        // need to add error handling here for unknown types
+        this->type = type;
+    }
+
+    void setValueRange(sf::Vector2f range){
+        valRange = range;
+
+        // creating temporary variables for calculations
+        float min_val = std::min(valRange.x, valRange.y);
+        float max_val = std::max(valRange.x, valRange.y);
+
+        // calculating the slope and the intercept for calculating slider value
+        if(type == VERTICAL) {
+            slope = (min_val - max_val)/(0 - (size.y - sliderSize.y));
+            intercept = min_val - slope*0;
+        }
+        else {
+            slope = (min_val - max_val)/(0 - (size.x - sliderSize.x));
+            intercept = min_val - slope*0;
+        }
+    }
+    
+    void setValue(float value) {
+        float min_val = std::min(valRange.x, valRange.y);
+        float max_val = std::max(valRange.x, valRange.y);
+
+        if(value > max_val || value < min_val)
+            std::cout << "Value error" << std::endl;
+
+        if(type == VERTICAL)
+            sliderPos.y = (value - intercept)/slope;
+        else
+            sliderPos.x = (value - intercept)/slope;
+    }
+
+    void setSliderFillColor(sf::Color color) {
+        sldFillColor = color;
+    }
+
+    void setSliderBorderColor(sf::Color color) {
+        sldBorderColor = color;
+    }
+
+    float getValue() {
+        if(type == VERTICAL)
+            return slope*sliderPos.y + intercept;
+        else 
+            return slope*sliderPos.x + intercept;
     }
 };
