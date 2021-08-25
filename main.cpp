@@ -39,7 +39,7 @@ int main() {
     comp.setBorderThickness(3);
 
     comp3.setValueRange({-10,10});
-    comp3.setValue(4);
+    comp3.setValue(-4);
 
     std::thread t(update);
     bool lock = false;

@@ -1,14 +1,17 @@
 ////////////////////////////////////
-// GuiComps version 0.03          //
+// GuiComps version 0.04          //
 // Created by Jonathan Ravinovich //
 ////////////////////////////////////
+
+// need to add namespace
 
 #include <SFML/Graphics.hpp>
 #include <deque>
 #include <vector>
 #include <algorithm>
 #include <string>
-#include <iostream>
+#include <iostream>  // not needed other than debugging
+#include <exception>
 
 #define ACCEL_FAST 0
 #define ACCEL_SLOW 1
@@ -22,6 +25,40 @@
 
 #define HORIZONTAL 0
 #define VERTICAL 1
+
+
+// Exceptions
+
+// Value error - used when giving invalid value of a variable, like type or integer
+class ValueError : public std::exception {
+private:
+    std::string msg;
+
+public:
+    ValueError(std::string message) {
+        msg = message;
+    }
+
+    const char* what() const noexcept override {
+        return msg.c_str();
+    }
+};
+
+// Load error - used when failing to load assets like sprites or fonts
+class LoadError : public std::exception {
+private:
+    std::string msg;
+
+public:
+    LoadError(std::string message) {
+        msg = message;
+    }
+
+    const char* what() const noexcept override {
+        return msg.c_str();
+    }   
+};
+
 
 class Component {
 protected:
@@ -41,6 +78,7 @@ public:
 
     ~Component(){}
     
+    // maybe could use a refrence here to make things faster
     void update(sf::Vector2i mPos, sf::Vector3i mBtns) {
         if(moves.size() > 0) {
             pos = moves[0];
@@ -50,7 +88,10 @@ public:
 
     virtual void draw(sf::RenderWindow& window) = 0;
 
-    void move(sf::Vector2f pos, sf::Vector2f accelVec={2,2}, int32_t numOfSteps=10, sf::Uint8 type=ACCEL_FAST) {
+    void move(sf::Vector2f pos, sf::Vector2f accelVec={2,2}, sf::Uint16 numOfSteps=10, sf::Uint8 type=ACCEL_FAST) {
+        if(numOfSteps == 0)
+            throw ValueError("The value of steps must be 1 or above");
+        
         float newX = pos.x;
         float newY = pos.y;
         float tmpX = this->pos.x;
@@ -60,7 +101,7 @@ public:
         std::vector<sf::Vector2f> tmpMoves;
 
         // calculating the path of the object using this formula: accel*(end_pos - current_pos)/(num_of_steps - current_step)
-        for(int32_t i=0; i<numOfSteps; i++) {
+        for(sf::Uint16 i=0; i<numOfSteps; i++) {
             nextX = accelVec.x*(newX - tmpX)/(numOfSteps - i);
             nextY = accelVec.y*(newX - tmpY)/(numOfSteps - i);
             tmpX += nextX;
@@ -135,7 +176,7 @@ public:
 
     void loadFont(std::string path) {
         if(!font.loadFromFile(path))
-            std::cout << "error loading font" << std::endl;
+            throw LoadError("Failed to load font from "+path);
         else
             loadedFont = true;
     }
@@ -369,14 +410,20 @@ public:
     }
 
     void setFillTransition(sf::Uint16 steps) {
+        if(steps == 0)
+            throw ValueError("The value of steps must be 1 or above");
         tFillSteps = steps;
     }
 
     void setBorderTransition(sf::Uint16 steps) {
+        if(steps == 0)
+            throw ValueError("The value of steps must be 1 or above");
         tBorderSteps = steps;
     }
 
     void setTextTransition(sf::Uint16 steps) {
+        if(steps == 0)
+            throw ValueError("The value of steps must be 1 or above");
         tTextSteps = steps;
     }
 };
@@ -499,11 +546,12 @@ public:
     }
 
     void setType(sf::Uint8 type) {
-        // need to add error handling here for unknown types
+        if(type != VERTICAL && type != HORIZONTAL)
+            throw ValueError("Type "+std::to_string(type)+" is invalid type");
         this->type = type;
     }
 
-    void setValueRange(sf::Vector2f range){
+    void setValueRange(sf::Vector2f range) {
         valRange = range;
 
         // creating temporary variables for calculations
@@ -525,8 +573,9 @@ public:
         float min_val = std::min(valRange.x, valRange.y);
         float max_val = std::max(valRange.x, valRange.y);
 
+        // need to find a cleaner way to do the exception
         if(value > max_val || value < min_val)
-            std::cout << "Value error" << std::endl;
+            throw ValueError("The value "+std::to_string(value)+" is outside the range of "+std::to_string(min_val)+" to "+std::to_string(max_val));
 
         if(type == VERTICAL)
             sliderPos.y = (value - intercept)/slope;
@@ -549,3 +598,5 @@ public:
             return slope*sliderPos.x + intercept;
     }
 };
+
+
