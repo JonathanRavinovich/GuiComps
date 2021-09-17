@@ -1,7 +1,17 @@
 ////////////////////////////////////
-// GuiComps version 0.04          //
+// GuiComps version 0.05          //
 // Created by Jonathan Ravinovich //
 ////////////////////////////////////
+
+///////////////////////////////////////////////////
+// Update Log for 0.05:                          //
+//                                               //
+// Added Circle Scrollbar                        //
+// Added TextEntry with basic functionality      //
+// Added this update log                         //
+// Did code refactoring                          //
+// Added exceptions in some areas for edge cases //
+///////////////////////////////////////////////////
 
 // need to add namespace
 
@@ -12,6 +22,7 @@
 #include <string>
 #include <iostream>  // not needed other than debugging
 #include <exception>
+#include <math.h>
 
 #define ACCEL_FAST 0
 #define ACCEL_SLOW 1
@@ -25,6 +36,9 @@
 
 #define HORIZONTAL 0
 #define VERTICAL 1
+
+#define RECT_SLIDER 0
+#define CIRCLE_SLIDER 1
 
 
 // Exceptions
@@ -60,6 +74,17 @@ public:
 };
 
 
+// custom data types
+typedef struct Key {
+    sf::Int16 code;
+    bool alt;
+    bool control;
+    bool shift;
+    bool system;
+} Key;
+
+// components
+
 class Component {
 protected:
     sf::Vector2f pos;
@@ -79,7 +104,7 @@ public:
     ~Component(){}
     
     // maybe could use a refrence here to make things faster
-    void update(sf::Vector2i mPos, sf::Vector3i mBtns) {
+    void update(sf::Vector2i& mPos, sf::Vector3i& mBtns, Key& key) {
         if(moves.size() > 0) {
             pos = moves[0];
             moves.pop_front();
@@ -176,7 +201,7 @@ public:
 
     void loadFont(std::string path) {
         if(!font.loadFromFile(path))
-            throw LoadError("Failed to load font from "+path);
+            throw LoadError("Failed to load font from " + path);
         else
             loadedFont = true;
     }
@@ -255,9 +280,13 @@ public:
 
     ~Label() {}
 
+    void update(sf::Vector2i& mPos, sf::Vector3i& mBtns, Key& key) {
+        TextComponent::update(mPos, mBtns, key);
+    }
+
     void draw(sf::RenderWindow& window) {
         if(!loadedFont) {
-            std::cout << "Error, font not loaded" << std::endl;
+            throw ValueError("None font is loaded");
         }
         else {
             sf::RectangleShape shape;
@@ -297,10 +326,9 @@ private:
     sf::Uint16 clickTimer;
 
     sf::Uint16 borderThickness;
-    bool isSelected;
     void (*action)();
 
-    bool selected(sf::Vector2i mPos) {
+    bool isSelected(sf::Vector2i mPos) {
         if(pos.x <= mPos.x && mPos.x <= pos.x+size.x) {
             return (pos.y <= mPos.y && mPos.y <= pos.y+size.y);
         }
@@ -326,13 +354,13 @@ public:
 
     ~TextButton() {}
 
-    void update(sf::Vector2i mPos, sf::Vector3i mBtns) {
-        TextComponent::update(mPos, mBtns);
+    void update(sf::Vector2i& mPos, sf::Vector3i& mBtns, Key& key) {
+        TextComponent::update(mPos, mBtns, key);
         
         if(clickTimer > 0)
             clickTimer--;
 
-        if(selected(mPos)) {
+        if(isSelected(mPos)) {
             if(mBtns.x && clickTimer <= 0) {
                 action();
                 clickTimer = 20;
@@ -360,37 +388,42 @@ public:
     }
 
     void draw(sf::RenderWindow& window) {
-        sf::RectangleShape shape;
-        shape.setSize(size);
-        shape.setPosition(pos);
-        
-        sf::Color tmpFillColor;
-        tmpFillColor.r = (fillColor.r*(tFillSteps-currFillStep)+hlFillColor.r*currFillStep)/tFillSteps;
-        tmpFillColor.g = (fillColor.g*(tFillSteps-currFillStep)+hlFillColor.g*currFillStep)/tFillSteps;
-        tmpFillColor.b = (fillColor.b*(tFillSteps-currFillStep)+hlFillColor.b*currFillStep)/tFillSteps;
-        shape.setFillColor(tmpFillColor);
-        
-        sf::Color tmpBorderColor;
-        tmpBorderColor.r = (borderColor.r*(tBorderSteps-currBorderStep)+hlBorderColor.r*currBorderStep)/tBorderSteps;
-        tmpBorderColor.g = (borderColor.g*(tBorderSteps-currBorderStep)+hlBorderColor.g*currBorderStep)/tBorderSteps;
-        tmpBorderColor.b = (borderColor.b*(tBorderSteps-currBorderStep)+hlBorderColor.b*currBorderStep)/tBorderSteps;
-        shape.setOutlineColor(tmpBorderColor);
-        shape.setOutlineThickness(borderThickness);
-        window.draw(shape);
+        if(!loadedFont) {
+            throw ValueError("None font is loaded");
+        }
+        else {
+            sf::RectangleShape shape;
+            shape.setSize(size);
+            shape.setPosition(pos);
+            
+            sf::Color tmpFillColor;
+            tmpFillColor.r = (fillColor.r*(tFillSteps-currFillStep)+hlFillColor.r*currFillStep)/tFillSteps;
+            tmpFillColor.g = (fillColor.g*(tFillSteps-currFillStep)+hlFillColor.g*currFillStep)/tFillSteps;
+            tmpFillColor.b = (fillColor.b*(tFillSteps-currFillStep)+hlFillColor.b*currFillStep)/tFillSteps;
+            shape.setFillColor(tmpFillColor);
+            
+            sf::Color tmpBorderColor;
+            tmpBorderColor.r = (borderColor.r*(tBorderSteps-currBorderStep)+hlBorderColor.r*currBorderStep)/tBorderSteps;
+            tmpBorderColor.g = (borderColor.g*(tBorderSteps-currBorderStep)+hlBorderColor.g*currBorderStep)/tBorderSteps;
+            tmpBorderColor.b = (borderColor.b*(tBorderSteps-currBorderStep)+hlBorderColor.b*currBorderStep)/tBorderSteps;
+            shape.setOutlineColor(tmpBorderColor);
+            shape.setOutlineThickness(borderThickness);
+            window.draw(shape);
 
-        sf::Text t;
-        t.setFont(font);
-        t.setString(text);
-        t.setCharacterSize(textSize);
-        t.setPosition(textDrawPos + pos);
-    
-        sf::Color tmpTextColor;
-        tmpTextColor.r = (textColor.r*(tTextSteps-currTextStep)+hlTextColor.r*currTextStep)/tTextSteps;
-        tmpTextColor.g = (textColor.g*(tTextSteps-currTextStep)+hlTextColor.g*currTextStep)/tTextSteps;
-        tmpTextColor.b = (textColor.b*(tTextSteps-currTextStep)+hlTextColor.b*currTextStep)/tTextSteps;
-        t.setFillColor(tmpTextColor);
+            sf::Text t;
+            t.setFont(font);
+            t.setString(text);
+            t.setCharacterSize(textSize);
+            t.setPosition(textDrawPos + pos);
+        
+            sf::Color tmpTextColor;
+            tmpTextColor.r = (textColor.r*(tTextSteps-currTextStep)+hlTextColor.r*currTextStep)/tTextSteps;
+            tmpTextColor.g = (textColor.g*(tTextSteps-currTextStep)+hlTextColor.g*currTextStep)/tTextSteps;
+            tmpTextColor.b = (textColor.b*(tTextSteps-currTextStep)+hlTextColor.b*currTextStep)/tTextSteps;
+            t.setFillColor(tmpTextColor);
 
-        window.draw(t);
+            window.draw(t);
+        }
     }
 
     void setBorderThickness(sf::Uint16 thickness) {
@@ -432,9 +465,11 @@ public:
 class ScrollBar : public Component {
 private:
     sf::Uint8 type;
+    sf::Uint8 sliderType;
     sf::Vector2f valRange;
     sf::Vector2f sliderPos;  // the position of slider is relative to the position of the bar
     sf::Vector2f sliderSize;
+    float sliderRadius;  // used for the circle scrollbar
     sf::Color sldFillColor;  // slider fill color
     sf::Color sldBorderColor;  // slider border color  
 
@@ -445,16 +480,24 @@ private:
     float slope;
     float intercept;
 
-    bool selected(sf::Vector2i mPos) {
-        if(pos.x+sliderPos.x <= mPos.x && mPos.x <= pos.x+sliderPos.x+sliderSize.x) {
-            return (pos.y+sliderPos.y <= mPos.y && mPos.y <= pos.y+sliderPos.y+sliderSize.y);
+    bool selected(sf::Vector2i& mPos) {
+        if(sliderType == RECT_SLIDER) {
+            if(pos.x+sliderPos.x <= mPos.x && mPos.x <= pos.x+sliderPos.x+sliderSize.x) {
+                return (pos.y+sliderPos.y <= mPos.y && mPos.y <= pos.y+sliderPos.y+sliderSize.y);
+            }
         }
+        else {
+            return pow(mPos.x - sliderPos.x - pos.x, 2) + pow(mPos.y - sliderPos.y - pos.y, 2) <= pow(sliderRadius,2);
+        }
+
         return false;
     }
 
 public:
-    ScrollBar(sf::Vector2f position, sf::Vector2f size, sf::Uint8 type, sf::Vector2f sliderPosition={0,0}, sf::Vector2f sliderSize={30,30}) : Component(position, size) {
+    // rectangle slider constructor
+    ScrollBar(sf::Vector2f position, sf::Vector2f size, sf::Uint8 type, sf::Vector2f sliderSize, sf::Vector2f sliderPosition={0,0}) : Component(position, size) {
         this->type = type;
+        sliderType = RECT_SLIDER;
         sliderPos = sliderPosition;
         this->sliderSize = sliderSize;
         valRange = {0,100};
@@ -481,10 +524,40 @@ public:
         }
     }
 
+    // circle slider constructor
+    ScrollBar(sf::Vector2f position, sf::Vector2f size, sf::Uint8 type, float sliderRadius, sf::Vector2f sliderPosition={0,0}) : Component(position, size) {
+        this->type = type;
+        sliderType = CIRCLE_SLIDER;
+        sliderPos = sliderPosition;
+        this->sliderRadius = sliderRadius;
+        valRange = {0,100};
+        fillColor = sf::Color::Blue;
+        borderColor = sf::Color::Blue;
+        sldFillColor = {127,127,127}; // applying gray color
+        sldBorderColor = {127,127,127};
+
+        hold = false;
+        pressed = false;
+
+        // creating temporary variables for calculations
+        float min_val = std::min(valRange.x, valRange.y);
+        float max_val = std::max(valRange.x, valRange.y);
+
+        // calculating the slope and the intercept for calculating slider value
+        if(type == VERTICAL) {
+            slope = (min_val - max_val)/(0 - size.y);
+            intercept = min_val - slope*0;
+        }
+        else {
+            slope = (min_val - max_val)/(0 - size.x);
+            intercept = min_val - slope*0;
+        }
+    }
+
     ~ScrollBar() {}
 
-    void update(sf::Vector2i mPos, sf::Vector3i mBtns) {
-        Component::update(mPos, mBtns);
+    void update(sf::Vector2i& mPos, sf::Vector3i& mBtns, Key& key) {
+        Component::update(mPos, mBtns, key);
 
         // checking if mouse is on slider
         if(selected(mPos)) {
@@ -511,22 +584,43 @@ public:
 
         // if the mouse holding the slider
         if(hold) {
-            if(type == VERTICAL)
-                // checking if the position of slider will be out of bounds
-                if(mPos.y - sldMouseDist < 0)
-                    sliderPos.y = 0;
-                else if(mPos.y - sldMouseDist > size.y - sliderSize.y)
-                    sliderPos.y = size.y - sliderSize.y;
-                else
-                    sliderPos.y = mPos.y - sldMouseDist;
-
-            else
-                if(mPos.x - sldMouseDist < 0)
-                    sliderPos.x = 0;
-                else if(mPos.x - sldMouseDist > size.x - sliderSize.x)
-                    sliderPos.x = size.x - sliderSize.x;
-                else
-                    sliderPos.x = mPos.x - sldMouseDist;        
+            if(type == VERTICAL) {
+                if(sliderType == RECT_SLIDER) {
+                    // checking if the position of slider will be out of bounds
+                    if(mPos.y - sldMouseDist < 0)
+                        sliderPos.y = 0;
+                    else if(mPos.y - sldMouseDist > size.y - sliderSize.y)
+                        sliderPos.y = size.y - sliderSize.y;
+                    else
+                        sliderPos.y = mPos.y - sldMouseDist;
+                }
+                else {
+                    if(mPos.y - sldMouseDist < 0)
+                        sliderPos.y = 0;
+                    else if(mPos.y - sldMouseDist > size.y)
+                        sliderPos.y = size.y;
+                    else
+                        sliderPos.y = mPos.y - sldMouseDist;
+                }
+            }
+            else {
+                if(sliderType == RECT_SLIDER) {
+                    if(mPos.x - sldMouseDist < 0)
+                        sliderPos.x = 0;
+                    else if(mPos.x - sldMouseDist > size.x - sliderSize.x)
+                        sliderPos.x = size.x - sliderSize.x;
+                    else
+                        sliderPos.x = mPos.x - sldMouseDist; 
+                }
+                else {
+                    if(mPos.x - sldMouseDist < 0)
+                        sliderPos.x = 0;
+                    else if(mPos.x - sldMouseDist > size.x)
+                        sliderPos.x = size.x;
+                    else
+                        sliderPos.x = mPos.x - sldMouseDist; 
+                } 
+            }      
         }
     }
 
@@ -538,11 +632,22 @@ public:
         shape.setOutlineColor(borderColor);
         window.draw(shape);
 
-        shape.setSize(sliderSize);
-        shape.setPosition(pos + sliderPos);
-        shape.setFillColor(sldFillColor);
-        shape.setOutlineColor(sldBorderColor);
-        window.draw(shape);
+        if(sliderType == RECT_SLIDER) {
+            shape.setSize(sliderSize);
+            shape.setPosition(pos + sliderPos);
+            shape.setFillColor(sldFillColor);
+            shape.setOutlineColor(sldBorderColor);
+            window.draw(shape);
+        }
+        else {
+            sf::CircleShape shape;
+            sf::Vector2f tmpSldRad = {sliderRadius,sliderRadius};
+            shape.setRadius(sliderRadius);
+            shape.setPosition(pos + sliderPos - tmpSldRad);
+            shape.setFillColor(sldFillColor);
+            shape.setOutlineColor(sldBorderColor);
+            window.draw(shape);
+        }
     }
 
     void setType(sf::Uint8 type) {
@@ -600,3 +705,211 @@ public:
 };
 
 
+// NOTES: 
+// entry only works with ascii right now because key pressed doesnt support unicode and text entered dont support arrow keys
+// auto resizing is buggy and doesnt work good(some characters either appear weird or dont appear at all)
+class TextEntry : public TextComponent {
+private:
+    bool selected;
+    char cursor;
+    sf::Uint8 blinkDelay;
+    sf::Uint8 blinkTimer;
+    sf::Uint8 cursorPos;
+    sf::Uint8 keyDelay;
+    sf::Uint8 ogKeyDelay;  // need this because dynamic change of keyDelay
+    sf::Uint8 keyTimer;
+    sf::Int8 cursorOffsetX;  // both offsets used for reposition the cursor relative to the text
+    sf::Int8 cursorOffsetY;
+    std::deque<Key> keys; 
+    sf::Int16 lastKey;
+    bool repeat;
+    sf::Uint8 repeatDelay;
+    sf::Uint8 repeatTimer;
+    const char* symbolPattern = ")!@#$%^&*(";  // currently temporary solution
+
+    bool isSelected(sf::Vector2i& mPos) {
+        if(pos.x <= mPos.x && mPos.x <= pos.x + size.x)
+            return (pos.y <= mPos.y && mPos.y <= pos.y + size.y);
+        return false;
+    }
+
+    void processKey(Key key) {
+        switch(key.code) {
+            case sf::Keyboard::Right:
+                if(cursorPos < text.length())
+                    cursorPos++;
+            break;
+
+            case sf::Keyboard::Left:
+                if(cursorPos > 0)
+                    cursorPos--;
+            break;
+
+            case sf::Keyboard::BackSpace:
+                if(text.length() > 0 && cursorPos > 0) {
+                    text.erase(cursorPos-1, 1);
+                    cursorPos--;
+                }
+            break;
+
+            case sf::Keyboard::Space:
+                text.insert(text.begin()+cursorPos, ' ');
+                cursorPos++;
+            break;
+
+            default:
+                if(sf::Keyboard::A <= key.code && key.code <= sf::Keyboard::Z) {
+                    // 'a'/'A' since sf::Keyboard::A = 0
+
+                    if(key.shift)
+                        text.insert(text.begin()+cursorPos, (char)(key.code + 'A'));
+                    else
+                        text.insert(text.begin()+cursorPos, (char)(key.code + 'a'));
+                    cursorPos++;
+                }
+
+                if(sf::Keyboard::Num0 <= key.code && key.code <= sf::Keyboard::Num9) {
+                    // '0' - sf::Keyboard::Num0 = 22
+                    // using the symbol pattern to remap key code values for shift combination
+                    if(key.shift)
+                        text.insert(text.begin()+cursorPos, (char)symbolPattern[key.code-26]);
+                    else 
+                        text.insert(text.begin()+cursorPos, (char)(key.code + 22));
+                    cursorPos++;
+                }
+            break;
+        }
+    }
+
+public:
+    TextEntry(sf::Vector2f position, sf::Vector2f size, std::string text) : TextComponent(position, size) {
+        this->text = text;
+        selected = false;
+        cursor = ' ';
+        blinkDelay = 30;
+        blinkTimer = 0;
+        cursorPos = 0;
+        keyDelay = 4;
+        ogKeyDelay = keyDelay;
+        keyTimer = 0;
+        cursorOffsetX = -1;
+        cursorOffsetY = -2;
+        lastKey = -1;
+        repeat = false;
+        repeatDelay = 4;
+        repeatTimer = 0;
+    }
+
+    ~TextEntry() {}
+
+    void update(sf::Vector2i& mPos, sf::Vector3i& mBtns, Key& key) {
+        TextComponent::update(mPos, mBtns, key);
+        
+        // processing the keys in deque
+        if(keys.size() > 0) {
+            processKey(keys[0]);
+            keys.pop_front();
+        }
+
+        // checking for mouse left click
+        if(mBtns.x) {
+            if(isSelected(mPos))
+                selected = true;
+            else
+                selected = false;
+        }
+
+        // checking if the entry is selected, if yes enabling blinking and key pressing
+        if(selected) {
+            // delay for blinking
+            if(blinkTimer < blinkDelay) {
+                blinkTimer++;
+            }
+            else {
+                blinkTimer = 0;
+
+                if(cursor == '|')
+                    cursor = ' ';
+                else
+                    cursor = '|';
+            }
+
+            // using deque to not loss keys(not sure if useful), repeat is used for emulating long key pressing
+            // timer is for debouncing presses
+            if(keyTimer < keyDelay) {
+                keyTimer++;
+            }
+            else {
+                // checking if the key isnt invalid
+                if(key.code != -1) {
+                    // checking for long key press, first times of long press wont add keys to deque
+                    if(key.code == lastKey) {
+                        if(repeatTimer < repeatDelay && repeat == false) {
+                            repeatTimer++;
+                        }
+                        else {
+                            keys.push_back(key);
+                            repeat = true;
+                        }
+                    }
+                    else {
+                        keys.push_back(key);
+                        repeat = false;
+                        repeatTimer = 0;
+                    }
+
+                    // long key press will have lower delay
+                    if(repeat)
+                        keyDelay = 2;
+                    else
+                        keyDelay = ogKeyDelay;
+                    
+                    keyTimer = 0;
+                    lastKey = key.code;
+                }
+                else {
+                    lastKey = key.code;
+                    repeatTimer = 0;
+                }
+            }
+        }
+        else {
+            // if the entry is not selected disabling cursor
+            cursor = ' ';
+        }
+    }
+    
+
+    void draw(sf::RenderWindow& window) {
+        if(!loadedFont) {
+            throw ValueError("None font is loaded");
+        }
+        else {
+            sf::RectangleShape shape;
+            shape.setSize(size);
+            shape.setPosition(pos);
+            shape.setFillColor(fillColor);
+            shape.setOutlineColor(borderColor);
+            window.draw(shape);
+
+            sf::Text t;
+            t.setFont(font);
+            t.setString(text);
+            t.setFillColor(textColor);
+            t.setCharacterSize(textSize);
+            t.setPosition(textDrawPos + pos);
+            window.draw(t);
+  
+            sf::Text tCursor;
+            t.setString(text.substr(0, cursorPos));
+            float tWidth = t.getLocalBounds().width;  
+            sf::Vector2f cursorOffset = {tWidth + cursorOffsetX, cursorOffsetY};
+            tCursor.setFont(font);
+            tCursor.setString(cursor);
+            tCursor.setFillColor(textColor);
+            tCursor.setCharacterSize(textSize);
+            tCursor.setPosition(textDrawPos + pos + cursorOffset);
+            window.draw(tCursor);
+        }
+    }
+};
